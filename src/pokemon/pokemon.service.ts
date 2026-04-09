@@ -1,19 +1,35 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { InjectModel      } from '@nestjs/mongoose';
-import { isValidObjectId, Model            } from 'mongoose';
+import { Injectable                   } from '@nestjs/common'   ;
+import { BadRequestException          } from '@nestjs/common'   ;
+import { InternalServerErrorException } from '@nestjs/common'   ;
+import { NotFoundException            } from '@nestjs/common'   ;
 
-import { CreatePokemonDto } from './dto/create-pokemon.dto';
-import { UpdatePokemonDto } from './dto/update-pokemon.dto';
+import { ConfigService                } from '@nestjs/config'   ;
 
-import { Pokemon          } from './entities/pokemon.entity';
+import { InjectModel                  } from '@nestjs/mongoose' ;
+import { Model                        } from 'mongoose'         ;
+import { isValidObjectId              } from 'mongoose'         ;
+
+import { CreatePokemonDto             } from './dto/create-pokemon.dto'      ;
+import { UpdatePokemonDto             } from './dto/update-pokemon.dto'      ;
+import { PaginationDto                } from 'src/common/dto/pagination.dto' ;
+
+import { Pokemon                      } from './entities/pokemon.entity'     ;
 
 @Injectable()
 export class PokemonService {
 
+  private defaultLimit:number = 5 ;
+
   constructor(
+
     @InjectModel(Pokemon.name)
-    private readonly pokemonModel: Model<Pokemon>
-  ) {}
+    private readonly pokemonModel: Model<Pokemon> ,
+
+    private readonly configService: ConfigService ,
+  ) {
+    this.defaultLimit = configService.get<number>( 'defaultLimit' ) || 5;
+    console.log ( `defaultLimit: ${this.defaultLimit}` )
+  }
 
   async create(createPokemonDto: CreatePokemonDto) {
     createPokemonDto.name = createPokemonDto.name.toLocaleLowerCase();
@@ -26,8 +42,15 @@ export class PokemonService {
     }
   }
 
-  async findAll() {
-    return await this.pokemonModel.find();
+  async findAll( pagination : PaginationDto ) {
+
+    const { limit = this.defaultLimit , offset = 0 } = pagination ;
+
+    return await this.pokemonModel.find()
+    .limit  ( limit    )  
+    .skip   ( offset   )
+    .sort   ( { no: 1} ) // Ordenado ascendente
+    .select ( '-__v'   ) ;  
   }
 
   async findOne(term: string) {
